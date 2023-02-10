@@ -77,6 +77,22 @@ as such it's also documented in `:h guifont`. But to sum it up and also add Neov
   - `Roboto_Mono_Light:h10` — Roboto Mono Light at size 10.
   - `Hack:h14:i:#e-subpixelantialias:#h-none`
 
+#### Line spacing
+
+VimScript:
+
+```vim
+set linespace=0
+```
+
+Lua:
+
+```lua
+vim.opt.linespace = 0
+```
+
+Controls spacing between lines, may also be negative.
+
 #### Scale
 
 VimScript:
@@ -269,8 +285,8 @@ vim.g.neovide_refresh_rate_idle = 5
 
 **Available since 0.10.**
 
-Setting `g:neovide_refresh_rate_idle` to a positive integer will set the refresh rate of the app when
-it is not in focus.
+Setting `g:neovide_refresh_rate_idle` to a positive integer will set the refresh rate of the app
+when it is not in focus.
 
 This might not have an effect on every platform (e.g. Wayland).
 
@@ -511,6 +527,41 @@ vim.g.neovide_cursor_antialiasing = true
 ```
 
 Enables or disables antialiasing of the cursor quad. Disabling may fix some cursor visual issues.
+
+#### Animate in insert mode
+
+VimScript:
+
+```vim
+let g:neovide_cursor_animate_in_insert_mode = v:true
+```
+
+Lua:
+
+```lua
+vim.g.neovide_cursor_animate_in_insert_mode = true
+```
+
+If disabled, when in insert mode (mostly through `i` or `a`), the cursor will move like in other
+programs and immediately jump to its new position.
+
+#### Animate switch to command line
+
+VimScript:
+
+```vim
+let g:neovide_cursor_animate_command_line = v:true
+```
+
+Lua:
+
+```lua
+vim.g.neovide_cursor_animate_command_line = true
+```
+
+If disabled, the switch from editor window to command line is non-animated, and the cursor jumps
+between command line and editor window immediately. Does **not** influence animation inside of the
+command line.
 
 #### Unfocused Outline Width
 
@@ -753,3 +804,7 @@ Only for the `railgun` vfx mode.
 
 Sets the velocity rotation speed of particles. The higher, the less particles actually move and look
 more "nervous", the lower, the more it looks like a collapsing sine wave.
+
+<!--
+  vim: textwidth=100
+-->

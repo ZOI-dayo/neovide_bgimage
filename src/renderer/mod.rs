@@ -71,6 +71,7 @@ pub enum DrawCommand {
     },
     UpdateCursor(Cursor),
     FontChanged(String),
+    LineSpaceChanged(i64),
     DefaultStyleChanged(Style),
     ModeChanged(EditorMode),
 }
@@ -175,7 +176,7 @@ impl Renderer {
         let mut font_changed = false;
 
         for draw_command in draw_commands.into_iter() {
-            if let DrawCommand::FontChanged(_) = draw_command {
+            if let DrawCommand::FontChanged(_) | DrawCommand::LineSpaceChanged(_) = draw_command {
                 font_changed = true;
             }
             self.handle_draw_command(root_canvas, draw_command);
@@ -199,7 +200,7 @@ impl Renderer {
 
         if let Some(root_window) = self.rendered_windows.get(&1) {
             let clip_rect = root_window.pixel_region(font_dimensions);
-            root_canvas.clip_rect(&clip_rect, None, Some(false));
+            root_canvas.clip_rect(clip_rect, None, Some(false));
         }
 
         let windows: Vec<&mut RenderedWindow> = {
@@ -341,6 +342,9 @@ impl Renderer {
             }
             DrawCommand::FontChanged(new_font) => {
                 self.grid_renderer.update_font(&new_font);
+            }
+            DrawCommand::LineSpaceChanged(new_linespace) => {
+                self.grid_renderer.update_linespace(new_linespace);
             }
             DrawCommand::DefaultStyleChanged(new_style) => {
                 self.grid_renderer.default_style = Arc::new(new_style);
