@@ -1,4 +1,17 @@
-# Neovide 
+# Neovide
+
+> # Neovide BGImage Fork
+> 
+> このレポジトリでは、オリジナルのNeovideの機能に加えて、背景画像を付けられるようになっています。
+> 最低限使えるようにはなっているものの、ほぼ自分用に作ったものであるため、パフォーマンス等の問題が残っている可能性があります。
+> それでも構わない方は利用してください。
+>
+> 以下のように設定を行なってください。
+> ```lua
+> g.neovide_background_image_path = "/path/to/image.png" -- /から始まるフルパス。JPEGなど、基本的なファイルなら指定可能です。
+> g.neovide_background_image_transparent = 0.25          -- 背景画像の濃度。デフォルトで0.25です。
+> ```
+
 [![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.gg/SjFpZdQys6) [![Chat on Matrix](https://matrix.to/img/matrix-badge.svg)](https://matrix.to/#/#neovide_community:gitter.im) [![Discussions](https://img.shields.io/badge/GitHub-Discussions-green?logo=github)](https://github.com/neovide/neovide/discussions)
 
 <img align="left" src="website/docs/assets/neovide-128x128.png">
