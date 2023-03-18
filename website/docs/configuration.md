@@ -41,7 +41,7 @@ set guifont=Source\ Code\ Pro:h14
 Lua:
 
 ```lua
-vim.opt.guifont = { "Source Code Pro", "h14" } -- text below applies for VimScript
+vim.o.guifont = "Source Code Pro:h14" -- text below applies for VimScript
 ```
 
 Controls the font used by Neovide. Only setting which is actually controlled through an option, and
@@ -115,6 +115,31 @@ this][scale-runtime] for a nice recipe to bind this to a hotkey.
 
 [scale-runtime]: faq.md#how-can-i-dynamically-change-the-scale-at-runtime
 
+#### Padding
+
+VimScript:
+
+```vim
+let g:neovide_padding_top = 0
+let g:neovide_padding_bottom = 0
+let g:neovide_padding_right = 0
+let g:neovide_padding_left = 0
+```
+
+Lua:
+
+```lua
+vim.g.neovide_padding_top = 0
+vim.g.neovide_padding_bottom = 0
+vim.g.neovide_padding_right = 0
+vim.g.neovide_padding_left = 0
+```
+
+**Unreleased yet.**
+
+Controls the space between the window border and the actual Neovim, which is filled with the
+background color instead.
+
 #### Background Color (Currently macOS only)
 
 VimScript:
@@ -131,7 +156,7 @@ Lua:
 ```lua
 -- Helper function for transparency formatting
 local alpha = function()
-  return string.format("%x", math.floor(255 * vim.g.neovide_transparency_point or 0.8))
+  return string.format("%x", math.floor(255 * vim.g.transparency or 0.8))
 end
 -- g:neovide_transparency should be 0 if you want to unify transparency of content and title bar.
 vim.g.neovide_transparency = 0.0
