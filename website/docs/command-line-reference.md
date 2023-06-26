@@ -92,19 +92,27 @@ leaking it, be "blocking" and have the shell directly as parent process.
 ### No Idle
 
 ```sh
---noidle or $NEOVIDE_NO_IDLE
+--noidle or $NEOVIDE_IDLE=0|1
 ```
 
-Instead of skipping some frames in order to match `g:neovide_refresh_rate`, render every possible
-one.
+With idle `on` (default), neovide won't render new frames when nothing is happening.
 
-### No sRGB
+With idle `off` (e.g. with `--noidle` flag), neovide will constantly render new frames,
+even when nothing changed. This takes more power and CPU time, but can possibly help
+with frame timing issues.
+
+### sRGB
 
 ```sh
---nosrgb or $NEOVIDE_NO_SRGB
+--nosrgb, --srgb or $NEOVIDE_SRGB=0|1
 ```
 
-Don't request sRGB on the window. Swapping sometimes fixes startup issues.
+Request sRGB support on the window. Neovide does not actually render with sRGB,
+but it's still enabled by default on Windows to work around
+[neovim/neovim/issues/907](https://github.com/neovim/neovim/issues/907). Other
+platforms should not need it, but if you encounter either startup crashes or
+wrong colors, you can try to swap the option. The command line parameter takes
+priority over the environment variable.
 
 ### No Tabs
 
@@ -119,15 +127,17 @@ buffers.
 Note: Even if files are opened in tabs, they're buffers anyways. It's just about them being visible
 or not.
 
-## No VSync
+### No VSync
 
 ```sh
---novsync
+--novsync, --vsync or $NEOVIDE_VSYNC=0|1
 ```
 
 **Available since 0.10.2.**
 
-By default, Neovide requests to use VSync on the created window. This option disables this behavior.
+By default, Neovide requests to use VSync on the created window. This
+`--novsync` disables this behavior. The command line parameter takes priority
+over the environment variable.
 
 ### Neovim Server
 

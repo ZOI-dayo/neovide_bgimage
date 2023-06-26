@@ -6,6 +6,8 @@ mod settings;
 #[cfg(target_os = "macos")]
 mod draw_background;
 
+#[cfg(target_os = "linux")]
+use std::env;
 use std::time::{Duration, Instant};
 
 use log::trace;
@@ -24,7 +26,9 @@ use winit::platform::macos::WindowBuilderExtMacOS;
 use draw_background::draw_background;
 
 #[cfg(target_os = "linux")]
-use winit::platform::unix::WindowBuilderExtUnix;
+use winit::platform::wayland::WindowBuilderExtWayland;
+#[cfg(target_os = "linux")]
+use winit::platform::x11::WindowBuilderExtX11;
 
 use image::{load_from_memory, GenericImageView, Pixel};
 use keyboard_manager::KeyboardManager;
@@ -38,6 +42,9 @@ use crate::{
     editor::EditorCommand,
     event_aggregator::EVENT_AGGREGATOR,
     frame::Frame,
+    profiling::{
+        emit_frame_mark, tracy_create_gpu_context, tracy_gpu_collect, tracy_gpu_zone, tracy_zone,
+    },
     redraw_scheduler::REDRAW_SCHEDULER,
     renderer::Renderer,
     renderer::WindowPadding,
@@ -101,6 +108,7 @@ impl WinitWindowWrapper {
 
     #[allow(clippy::needless_collect)]
     pub fn handle_window_commands(&mut self) {
+        tracy_zone!("handle_window_commands", 0);
         while let Ok(window_command) = self.window_command_receiver.try_recv() {
             match window_command {
                 WindowCommand::TitleChanged(new_title) => self.handle_title_changed(new_title),
@@ -142,6 +150,7 @@ impl WinitWindowWrapper {
     }
 
     pub fn handle_event(&mut self, event: Event<()>) {
+        tracy_zone!("handle_event", 0);
         self.keyboard_manager.handle_event(&event);
         self.mouse_manager.handle_event(
             &event,
@@ -194,6 +203,7 @@ impl WinitWindowWrapper {
     }
 
     pub fn draw_frame(&mut self, dt: f32) {
+        tracy_zone!("draw_frame");
         let window = self.windowed_context.window();
 
         let window_settings = SETTINGS.get::<WindowSettings>();
@@ -218,11 +228,19 @@ impl WinitWindowWrapper {
             self.skia_renderer.resize(&self.windowed_context);
         }
 
-        if REDRAW_SCHEDULER.should_draw() || SETTINGS.get::<WindowSettings>().no_idle {
+        if REDRAW_SCHEDULER.should_draw() || !SETTINGS.get::<WindowSettings>().idle {
             self.font_changed_last_frame =
                 self.renderer.draw_frame(self.skia_renderer.canvas(), dt);
-            self.skia_renderer.gr_context.flush(None);
-            self.windowed_context.swap_buffers().unwrap();
+            {
+                tracy_gpu_zone!("skia flush");
+                self.skia_renderer.gr_context.flush(None);
+            }
+            {
+                tracy_gpu_zone!("swap buffers");
+                self.windowed_context.swap_buffers().unwrap();
+            }
+            emit_frame_mark();
+            tracy_gpu_collect();
         }
 
         // Wait until fonts are loaded, so we can set proper window size.
@@ -378,12 +396,16 @@ pub fn create_window() {
     }
 
     #[cfg(target_os = "linux")]
-    let winit_window_builder = winit_window_builder
-        .with_app_id(cmd_line_settings.wayland_app_id.clone())
-        .with_class(
-            cmd_line_settings.x11_wm_class_instance.clone(),
-            cmd_line_settings.x11_wm_class.clone(),
-        );
+    let winit_window_builder = {
+        if env::var("WAYLAND_DISPLAY").is_ok() {
+            let app_id = &cmd_line_settings.wayland_app_id;
+            WindowBuilderExtWayland::with_name(winit_window_builder, "neovide", app_id.clone())
+        } else {
+            let class = &cmd_line_settings.x11_wm_class;
+            let instance = &cmd_line_settings.x11_wm_class_instance;
+            WindowBuilderExtX11::with_name(winit_window_builder, class, instance)
+        }
+    };
 
     #[cfg(target_os = "macos")]
     let winit_window_builder = winit_window_builder.with_accepts_first_mouse(false);
@@ -402,7 +424,10 @@ pub fn create_window() {
             let monitor_width = monitor_size.width as i32;
             let monitor_height = monitor_size.height as i32;
 
-            let window_position = window.outer_position().ok()?;
+            let window_position = previous_position
+                .filter(|_| !maximized)
+                .or_else(|| window.outer_position().ok())?;
+
             let window_size = window.outer_size();
             let window_width = window_size.width as i32;
             let window_height = window_size.height as i32;
@@ -450,6 +475,8 @@ pub fn create_window() {
         saved_grid_size: None,
         window_command_receiver,
     };
+
+    tracy_create_gpu_context("main_render_context");
 
     let mut previous_frame_start = Instant::now();
 
