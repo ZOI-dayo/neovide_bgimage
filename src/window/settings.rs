@@ -20,6 +20,7 @@ pub struct WindowSettings {
     pub padding_left: u32,
     pub padding_right: u32,
     pub padding_bottom: u32,
+    pub theme: String,
 }
 
 impl Default for WindowSettings {
@@ -43,6 +44,7 @@ impl Default for WindowSettings {
             padding_left: 0,
             padding_right: 0,
             padding_bottom: 0,
+            theme: "".to_string(),
         }
     }
 }
@@ -50,16 +52,16 @@ impl Default for WindowSettings {
 #[derive(Clone, SettingGroup)]
 #[setting_prefix = "input"]
 pub struct KeyboardSettings {
-    pub use_logo: bool,
     pub macos_alt_is_meta: bool,
+    pub ime: bool,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for KeyboardSettings {
     fn default() -> Self {
         Self {
-            use_logo: cfg!(target_os = "macos"),
             macos_alt_is_meta: false,
+            ime: true,
         }
     }
 }

@@ -15,7 +15,7 @@ use std::{
 use log::error;
 use std::fs::File;
 use std::io::Read;
-use skia_safe::{Canvas, Image, Data, Point, Paint, Color4f, BlendMode};
+use skia_safe::{Canvas, Image, Point, Data, Paint, Color4f, BlendMode};
 use tokio::sync::mpsc::UnboundedReceiver;
 use winit::event::Event;
 
@@ -212,7 +212,7 @@ impl Renderer {
             let (mut root_windows, mut floating_windows): (
                 Vec<&mut RenderedWindow>,
                 Vec<&mut RenderedWindow>,
-                ) = self
+            ) = self
                 .rendered_windows
                 .values_mut()
                 .filter(|window| !window.hidden)
@@ -243,9 +243,9 @@ impl Renderer {
                     default_background.with_a((255.0 * transparency) as u8),
                     font_dimensions,
                     dt,
-                    )
+                )
             })
-        .collect();
+            .collect();
 
         let windows = &self.rendered_windows;
         self.cursor_renderer
@@ -294,6 +294,7 @@ impl Renderer {
                     );
             }
         }
+
         root_canvas.restore();
 
         font_changed
@@ -334,7 +335,7 @@ impl Renderer {
                                 (grid_left as f32, grid_top as f32).into(),
                                 (width, height).into(),
                                 self.window_padding,
-                                );
+                            );
                             vacant_entry.insert(new_window);
                         } else {
                             error!("WindowDrawCommand sent for uninitialized grid {}", grid_id);
@@ -359,6 +360,10 @@ impl Renderer {
             }
             _ => {}
         }
+    }
+
+    pub fn get_cursor_position(&self) -> Point {
+        self.cursor_renderer.get_current_position()
     }
 }
 
