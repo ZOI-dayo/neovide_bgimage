@@ -13,7 +13,9 @@ use std::{
 };
 
 use log::error;
-use skia_safe::{Canvas, Point};
+use std::fs::File;
+use std::io::Read;
+use skia_safe::{Canvas, Image, Point, Data, Paint, Color4f, BlendMode};
 use tokio::sync::mpsc::UnboundedReceiver;
 use winit::event::Event;
 
@@ -91,6 +93,32 @@ pub struct Renderer {
     os_scale_factor: f64,
     user_scale_factor: f64,
     pub window_padding: WindowPadding,
+}
+
+static mut BACKGOROUND_IMAGE_BUF: Vec<u8> = Vec::new();
+static mut BGIMAGE_EXIST: bool = false;
+struct BGImageInfo {
+    pub size: (i32, i32),
+    pub img: Option<Image>,
+}
+static mut BGIMAGE_INFO: BGImageInfo = BGImageInfo {
+    size: (0, 0),
+    img: None,
+};
+
+#[derive(Clone, SettingGroup)]
+pub struct BGImageSettings {
+    pub background_image_path: String,
+    pub background_image_transparent: f32,
+}
+
+impl Default for BGImageSettings {
+    fn default() -> Self {
+        Self {
+            background_image_path: "".to_string(),
+            background_image_transparent: 0.25,
+        }
+    }
 }
 
 impl Renderer {
@@ -227,6 +255,45 @@ impl Renderer {
             .draw(&mut self.grid_renderer, &self.current_mode, root_canvas, dt);
 
         self.profiler.draw(root_canvas, dt);
+
+        unsafe {
+            if !BGIMAGE_EXIST && SETTINGS.get::<BGImageSettings>().background_image_path.len() != 0
+            {
+                let file = File::open(SETTINGS.get::<BGImageSettings>().background_image_path);
+                if file.is_ok() {
+                    BGIMAGE_EXIST = true;
+                    let _ = file.unwrap().read_to_end(&mut BACKGOROUND_IMAGE_BUF);
+                }
+            }
+            if BGIMAGE_EXIST {
+                if BGIMAGE_INFO.size == (0,0) {
+                    BGIMAGE_INFO.img =Image::from_encoded(
+                        Data::new_copy(
+                            BACKGOROUND_IMAGE_BUF.clone().leak()
+                            )
+                        );
+                    let img_width = BGIMAGE_INFO.img.clone().unwrap().width();
+                    let img_height = BGIMAGE_INFO.img.clone().unwrap().height();
+                    BGIMAGE_INFO.size = (img_width, img_height);
+
+                }
+                let transparent = SETTINGS.get::<BGImageSettings>().background_image_transparent;
+                let mut paint: Paint = Paint::new(Color4f::new(1.0, 1.0, 1.0, transparent), None);
+                paint.set_blend_mode(BlendMode::DstOver);
+                let canvas_size = root_canvas.base_layer_size();
+                let zoom_rate = f32::max(canvas_size.width as f32 / BGIMAGE_INFO.size.0 as f32, canvas_size.height as f32 / BGIMAGE_INFO.size.1 as f32);
+                root_canvas.scale((zoom_rate, zoom_rate));
+
+                let dx = - (BGIMAGE_INFO.size.0 as f32 - (canvas_size.width as f32) / zoom_rate) / 2.0;
+                let dy = - (BGIMAGE_INFO.size.1 as f32 - (canvas_size.height as f32) / zoom_rate) / 2.0;
+
+                root_canvas.draw_image(
+                    BGIMAGE_INFO.img.clone().unwrap(),
+                    Point::new(dx, dy),
+                    Option::Some(&paint)
+                    );
+            }
+        }
 
         root_canvas.restore();
 

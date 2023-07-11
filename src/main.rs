@@ -52,6 +52,7 @@ use std::time::SystemTime;
 use time::macros::format_description;
 use time::OffsetDateTime;
 use window::{create_window, KeyboardSettings, WindowSettings};
+use renderer::BGImageSettings;
 
 pub use channel_utils::*;
 pub use event_aggregator::*;
@@ -172,6 +173,7 @@ fn protected_main() {
     RendererSettings::register();
     CursorSettings::register();
     KeyboardSettings::register();
+    BGImageSettings::register();
 
     start_bridge();
     start_editor();
