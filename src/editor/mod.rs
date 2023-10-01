@@ -4,12 +4,12 @@ mod grid;
 mod style;
 mod window;
 
-use std::{collections::HashMap, sync::Arc, thread};
+use std::{collections::HashMap, rc::Rc, sync::Arc, thread};
 
 use log::{error, trace};
 
 use crate::{
-    bridge::{GuiOption, RedrawEvent, WindowAnchor},
+    bridge::{GuiOption, ParallelCommand, RedrawEvent, UiCommand, WindowAnchor},
     event_aggregator::EVENT_AGGREGATOR,
     profiling::tracy_zone,
     redraw_scheduler::REDRAW_SCHEDULER,
@@ -62,7 +62,7 @@ pub struct Editor {
     pub cursor: Cursor,
     pub defined_styles: HashMap<u64, Arc<Style>>,
     pub mode_list: Vec<CursorMode>,
-    pub draw_command_batcher: Arc<DrawCommandBatcher>,
+    pub draw_command_batcher: Rc<DrawCommandBatcher>,
     pub current_mode_index: Option<u64>,
 }
 
@@ -73,7 +73,7 @@ impl Editor {
             cursor: Cursor::new(),
             defined_styles: HashMap::new(),
             mode_list: Vec::new(),
-            draw_command_batcher: Arc::new(DrawCommandBatcher::new()),
+            draw_command_batcher: Rc::new(DrawCommandBatcher::new()),
             current_mode_index: None,
         }
     }
@@ -261,6 +261,10 @@ impl Editor {
                 } => {
                     tracy_zone!("EditorWindowViewport");
                     self.send_updated_viewport(grid, scroll_delta)
+                }
+                RedrawEvent::ShowIntro { message } => {
+                    EVENT_AGGREGATOR
+                        .send(UiCommand::Parallel(ParallelCommand::ShowIntro { message }));
                 }
                 _ => {}
             },

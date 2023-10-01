@@ -58,6 +58,9 @@ as such it's also documented in `:h guifont`. But to sum it up and also add Neov
   - are separated from the fonts and themselves through `:` (colons).
   - can be one of the following:
     - `hX` — Sets the font size to `X` points, while `X` can be any (even floating-point) number.
+    - `wX` (available since 0.11.2) — Sets the width **relative offset** to be `X` points, while `X`
+        can be again any number. Negative values shift characters closer together, positive values
+        shift them further apart.
     - `b` — Sets the font **bold**.
     - `i` — Sets the font _italic_.
     - `#e-X` (available since 0.10.2) — Sets edge pixels to be drawn opaquely or
@@ -286,7 +289,7 @@ Lua:
 vim.g.neovide_theme = 'auto'
 ```
 
-**Unreleased yet.**
+**Available since 0.11.0.**
 
 Set the [`background`](https://neovim.io/doc/user/options.html#'background') option when Neovide
 starts. Possible values: _light_, _dark_, _auto_. On systems that support it, _auto_ will mirror the
@@ -457,7 +460,7 @@ Lua:
 vim.g.neovide_input_ime = true
 ```
 
-**Unreleased yet.**
+**Available since 0.11.0.**
 
 This lets you disable the IME input. For example, to only enables IME in input mode and when
 searching, so that you can navigate normally, when typing some East Asian languages, you can add

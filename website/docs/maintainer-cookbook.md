@@ -96,7 +96,8 @@ Now here's where the order becomes important:
 3. Create a commit named `Run cargo update` or similar
 4. Bump the version to match the tag name everywhere
 
-    - `Cargo.toml`
+    - `Cargo.toml` (do note it contains the version _twice_, one time in the
+        top, one time at the bottom in the bundling section)
     - `snap/snapcraft.yaml`
     - `website/docs/*.md` and update `Unreleased yet` to `Available since $tag`
       (where `$tag` is the tag name)
@@ -113,9 +114,15 @@ In the meantime, you can look through the previous commits to see if you missed
 anything.
 
 1. From the `Bump version to $tag` commit, download all the artifacts
-2. Unzip `neovide-linux.tar.gz.zip` to get `neovide.tar.gz`
+2. Unzip
+
+    - `neovide.AppImage.zip`
+    - `neovide.AppImage.zsync.zip`
+    - `neovide.msi.zip`
+    - `neovide-linux-x86_64.tar.gz.zip`
+
 3. Head to the release draft, edit it and upload the produced artifacts (using
-    the unzipped `neovide.tar.gz` for Linux)
+    the unzipped versions if listed above)
 4. Hit `Publish release`
 5. profit
 

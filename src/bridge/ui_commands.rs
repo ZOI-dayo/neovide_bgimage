@@ -11,6 +11,8 @@ use tokio::sync::mpsc::unbounded_channel;
 use crate::windows_utils::{
     register_rightclick_directory, register_rightclick_file, unregister_rightclick,
 };
+
+use super::show_intro_message;
 use crate::{
     bridge::NeovimWriter, event_aggregator::EVENT_AGGREGATOR, running_tracker::RUNNING_TRACKER,
 };
@@ -122,6 +124,9 @@ pub enum ParallelCommand {
     RegisterRightClick,
     #[cfg(windows)]
     UnregisterRightClick,
+    ShowIntro {
+        message: Vec<String>,
+    },
 }
 
 impl ParallelCommand {
@@ -138,14 +143,12 @@ impl ParallelCommand {
                 .ui_try_resize(width.max(10) as i64, height.max(3) as i64)
                 .await
                 .expect("Resize failed"),
-            ParallelCommand::FocusLost => nvim
-                .command("if exists('#FocusLost') | doautocmd <nomodeline> FocusLost | endif")
-                .await
-                .expect("Focus Lost Failed"),
-            ParallelCommand::FocusGained => nvim
-                .command("if exists('#FocusGained') | doautocmd <nomodeline> FocusGained | endif")
-                .await
-                .expect("Focus Gained Failed"),
+            ParallelCommand::FocusLost => {
+                nvim.ui_set_focus(false).await.expect("Focus Lost Failed")
+            }
+            ParallelCommand::FocusGained => {
+                nvim.ui_set_focus(true).await.expect("Focus Gained Failed")
+            }
             ParallelCommand::FileDrop(path) => {
                 nvim.command(format!("e {path}").as_str()).await.ok();
             }
@@ -224,6 +227,9 @@ impl ParallelCommand {
                     nvim.err_writeln(msg).await.ok();
                     error!("{}", msg);
                 }
+            }
+            ParallelCommand::ShowIntro { message } => {
+                show_intro_message(nvim, &message).await.ok();
             }
         }
     }

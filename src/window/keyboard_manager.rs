@@ -8,8 +8,12 @@ use crate::{settings::SETTINGS, window::KeyboardSettings};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::{
     event::{ElementState, Event, Ime, KeyEvent, Modifiers, WindowEvent},
-    keyboard::Key,
+    keyboard::{Key, KeyCode, KeyLocation},
 };
+
+fn is_ascii_alphabetic_char(text: &str) -> bool {
+    text.len() == 1 && text.chars().next().unwrap().is_ascii_alphabetic()
+}
 
 pub struct KeyboardManager {
     modifiers: Modifiers,
@@ -30,17 +34,17 @@ impl KeyboardManager {
                 event:
                     WindowEvent::KeyboardInput {
                         event: key_event,
-                        is_synthetic,
+                        is_synthetic: false,
                         ..
                     },
                 ..
-            } if key_event.state == ElementState::Pressed
-                && self.ime_preedit.0.is_empty()
-                && !is_synthetic =>
-            {
-                if let Some(text) = self.format_key(key_event) {
-                    log::trace!("Key pressed {} {:?}", text, self.modifiers.state());
-                    EVENT_AGGREGATOR.send(UiCommand::Serial(SerialCommand::Keyboard(text)));
+            } if self.ime_preedit.0.is_empty() => {
+                log::trace!("{:#?}", key_event);
+                if key_event.state == ElementState::Pressed {
+                    if let Some(text) = self.format_key(key_event) {
+                        log::trace!("Key pressed {} {:?}", text, self.modifiers.state());
+                        EVENT_AGGREGATOR.send(UiCommand::Serial(SerialCommand::Keyboard(text)));
+                    }
                 }
             }
             Event::WindowEvent {
@@ -60,14 +64,65 @@ impl KeyboardManager {
             } => {
                 // Record the modifier states so that we can properly add them to the keybinding
                 // text
+                log::trace!("{:?}", *modifiers);
                 self.modifiers = *modifiers;
             }
             _ => {}
         }
     }
 
+    fn handle_numpad_numkey<'a>(
+        is_numlock_enabled: bool,
+        numlock_str: &'a str,
+        non_numlock_str: &'a str,
+    ) -> Option<&'a str> {
+        if is_numlock_enabled {
+            return Some(numlock_str);
+        }
+        Some(non_numlock_str)
+    }
+
+    fn handle_numpad_key(key_event: &KeyEvent) -> Option<&str> {
+        let is_numlock_key = key_event.text.is_some();
+        match key_event.physical_key {
+            KeyCode::NumpadDivide => Some("kDivide"),
+            KeyCode::NumpadStar => Some("kMultiply"),
+            KeyCode::NumpadSubtract => Some("kMinus"),
+            KeyCode::NumpadAdd => Some("kPlus"),
+            KeyCode::NumpadEnter => Some("kEnter"),
+            KeyCode::NumpadDecimal => Some("kDel"),
+            KeyCode::Numpad9 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k9", "kPageUp")
+            }
+            KeyCode::Numpad8 => KeyboardManager::handle_numpad_numkey(is_numlock_key, "k8", "kUp"),
+            KeyCode::Numpad7 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k7", "kHome")
+            }
+            KeyCode::Numpad6 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k6", "kRight")
+            }
+            KeyCode::Numpad5 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k5", "kOrigin")
+            }
+            KeyCode::Numpad4 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k4", "kLeft")
+            }
+            KeyCode::Numpad3 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k3", "kPageDown")
+            }
+            KeyCode::Numpad2 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k2", "kDown")
+            }
+            KeyCode::Numpad1 => KeyboardManager::handle_numpad_numkey(is_numlock_key, "k1", "kEnd"),
+            KeyCode::Numpad0 => {
+                KeyboardManager::handle_numpad_numkey(is_numlock_key, "k0", "Insert")
+            }
+            _ => None,
+        }
+    }
+
     fn format_key(&self, key_event: &KeyEvent) -> Option<String> {
-        if let Some(text) = get_special_key(&key_event.logical_key) {
+        if let Some(text) = get_special_key(key_event) {
             Some(self.format_key_text(text, true))
         } else {
             self.format_normal_key(key_event)
@@ -97,11 +152,19 @@ impl KeyboardManager {
     }
 
     fn format_key_text(&self, text: &str, is_special: bool) -> String {
-        let modifiers = self.format_modifier_string(is_special);
-        // < needs to be formatted as a special character, but note that it's not threated as a
+        // Neovim always converts shifted ascii alpha characters to uppercase, so do it here already
+        // This fixes some bugs where winit does not report the uppercase text as it should
+        let text = if self.modifiers.state().shift_key() && is_ascii_alphabetic_char(text) {
+            text.to_uppercase()
+        } else {
+            text.to_string()
+        };
+
+        let modifiers = self.format_modifier_string(&text, is_special);
+        // < needs to be formatted as a special character, but note that it's not treated as a
         // special key for the modifier formatting, so S- and -M are still potentially stripped
         let (text, is_special) = if text == "<" {
-            ("lt", true)
+            ("lt".to_string(), true)
         } else {
             (text, is_special)
         };
@@ -109,35 +172,38 @@ impl KeyboardManager {
             if is_special {
                 format!("<{text}>")
             } else {
-                text.to_string()
+                text
             }
         } else {
             format!("<{modifiers}{text}>")
         }
     }
 
-    pub fn format_modifier_string(&self, is_special: bool) -> String {
-        // Is special is used for special keys so that all modifiers are always included
-        // It's also true with alt_is_meta is set to true.
-        // When the key is not special, shift is removed, since the base character is already
-        // shifted. Furthermore on macOS, meta is additionally removed when alt_is_meta is set to false
-        let shift = or_empty(self.modifiers.state().shift_key() && is_special, "S-");
-        let ctrl = or_empty(self.modifiers.state().control_key(), "C-");
-        let alt = or_empty(
-            self.modifiers.state().alt_key() && (use_alt() || is_special),
-            "M-",
-        );
-        let logo = or_empty(self.modifiers.state().super_key(), "D-");
+    pub fn format_modifier_string(&self, text: &str, is_special: bool) -> String {
+        // Shift should always be sent together with special keys (Enter, Space, F keys and so on).
+        // And as a special case togeter with CTRL and standard a-z characters.
+        // In all other cases the resulting character is enough.
+        // Note that, in Neovim <C-a> and <C-A> are the same, but <C-S-A> is different.
+        // Actually, <C-S-a> is the same as <C-S-A>, since Neovim converts all shifted
+        // lowercase alphas to uppercase internally in its mappings.
+        // Also note that mappings that do not include CTRL work differently, they are always
+        // normalized in combination with ascii alphas. For example <M-S-a> is normalized to
+        // uppercase without shift, or <M-A> .
+        // But in combination with other characters, such as <M-S-$> they are not,
+        // so we don't want to send shift when that's the case.
+        let include_shift =
+            is_special || (self.modifiers.state().control_key() && is_ascii_alphabetic_char(text));
 
-        shift.to_owned() + ctrl + alt + logo
-    }
-}
+        // Always send meta (alt) together with special keys, or when alt is meta on macOS
+        let include_alt = use_alt() || is_special;
 
-fn or_empty(condition: bool, text: &str) -> &str {
-    if condition {
-        text
-    } else {
-        ""
+        let state = self.modifiers.state();
+        let mut ret = String::new();
+        (state.shift_key() && include_shift).then(|| ret += "S-");
+        state.control_key().then(|| ret += "C-");
+        (state.alt_key() && include_alt).then(|| ret += "M-");
+        state.super_key().then(|| ret += "D-");
+        ret
     }
 }
 
@@ -154,16 +220,21 @@ fn use_alt() -> bool {
     settings.macos_alt_is_meta
 }
 
-fn get_special_key(key: &Key) -> Option<&str> {
+fn get_special_key(key_event: &KeyEvent) -> Option<&str> {
+    if key_event.location == KeyLocation::Numpad {
+        return KeyboardManager::handle_numpad_key(key_event);
+    }
+    let key = &key_event.logical_key;
     match key {
-        Key::Backspace => Some("BS"),
-        Key::Space => Some("Space"),
-        Key::Escape => Some("Esc"),
-        Key::Delete => Some("Del"),
-        Key::ArrowUp => Some("Up"),
         Key::ArrowDown => Some("Down"),
         Key::ArrowLeft => Some("Left"),
         Key::ArrowRight => Some("Right"),
+        Key::ArrowUp => Some("Up"),
+        Key::Backspace => Some("BS"),
+        Key::Delete => Some("Del"),
+        Key::End => Some("End"),
+        Key::Enter => Some("Enter"),
+        Key::Escape => Some("Esc"),
         Key::F1 => Some("F1"),
         Key::F2 => Some("F2"),
         Key::F3 => Some("F3"),
@@ -199,11 +270,19 @@ fn get_special_key(key: &Key) -> Option<&str> {
         Key::F33 => Some("F33"),
         Key::F34 => Some("F34"),
         Key::F35 => Some("F35"),
-        Key::Insert => Some("Insert"),
         Key::Home => Some("Home"),
-        Key::End => Some("End"),
-        Key::PageUp => Some("PageUp"),
+        Key::Insert => Some("Insert"),
         Key::PageDown => Some("PageDown"),
+        Key::PageUp => Some("PageUp"),
+        Key::Space => {
+            // Space can finish a dead key sequence, so treat space as a special key only when
+            // that doesn't happen.
+            if key_event.text == Some(" ".into()) {
+                Some("Space")
+            } else {
+                None
+            }
+        }
         Key::Tab => Some("Tab"),
         _ => None,
     }

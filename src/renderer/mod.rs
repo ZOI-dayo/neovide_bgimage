@@ -35,7 +35,7 @@ pub use rendered_window::{
     LineFragment, RenderedWindow, WindowDrawCommand, WindowDrawDetails, WindowPadding,
 };
 
-pub use opengl::{build_context, Context as WindowedContext};
+pub use opengl::{build_context, build_window, Context as WindowedContext};
 
 #[derive(SettingGroup, Clone)]
 pub struct RendererSettings {
@@ -223,10 +223,7 @@ impl Renderer {
 
             floating_windows.sort_by(floating_sort);
 
-            root_windows
-                .into_iter()
-                .chain(floating_windows.into_iter())
-                .collect()
+            root_windows.into_iter().chain(floating_windows).collect()
         };
 
         let settings = SETTINGS.get::<RendererSettings>();

@@ -1,6 +1,6 @@
 [package]
 name = "neovide"
-version = "0.10.4"
+version = "0.11.2"
 edition = "2021"
 build = "build.rs"
 description = "Neovide: No Nonsense Neovim Gui"
@@ -20,7 +20,7 @@ gpu_profiling = ["profiling"]
 async-trait = "0.1.53"
 backtrace = "0.3.67"
 cfg-if = "1.0.0"
-clap = { version = "4.0.8", features = ["cargo", "derive", "env"] }
+clap = { version = "4.3.19", features = ["cargo", "derive", "env"] }
 copypasta = "0.8.1"
 csscolorparser = "0.6.2"
 derive-new = "0.5.9"
@@ -37,7 +37,7 @@ lazy_static = "1.4.0"
 log = "0.4.16"
 lru = "0.7.5"
 neovide-derive = { path = "neovide-derive" }
-nvim-rs = { version = "0.5.0", features = ["use_tokio"] }
+nvim-rs = { version = "0.6.0", features = ["use_tokio"] }
 parking_lot = "0.12.0"
 pin-project = "1.0.10"
 rand = "0.8.5"
@@ -62,23 +62,31 @@ scoped-env = "2.1.0"
 serial_test = "2.0.0"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser", "wincon"] }
-
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1.12"
-
-[target.'cfg(linux)'.dependencies.skia-safe]
-features = ["gl", "egl"]
-version = "0.52.0"
-
-[target.'cfg(not(linux))'.dependencies.skia-safe]
-features = ["gl"]
-version = "0.52.0"
+# NOTE: winerror is only needed because the indirect dependency parity-tokio-ipc does not set it even if it uses it
+winapi = { version = "0.3.9", features = ["winuser", "wincon", "winerror"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.24.0"
 objc = "0.2.7"
 shlex = "1.1.0"
+
+[target.'cfg(not(windows))'.dependencies]
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1.12"
+
+[target.'cfg(windows)'.dependencies.skia-safe]
+# NOTE: Including textlayout for pre-built binaries
+features = ["gl", "textlayout"]
+version = "0.62.0"
+
+[target.'cfg(linux)'.dependencies.skia-safe]
+features = ["egl", "gl", "textlayout", "wayland", "x11"]
+version = "0.62.0"
+
+[target.'cfg(not(linux))'.dependencies.skia-safe]
+features = ["gl"]
+version = "0.62.0"
 
 [profile.release]
 lto = true
@@ -94,7 +102,7 @@ debug = true
 name = "Neovide"
 identifier = "com.neovide.neovide"
 icon = ["assets/neovide.ico"]
-version = "0.10.4"
+version = "0.11.2"
 resources = []
 copyright = "Copyright (c) Neovide Contributors 2023. All rights reserved."
 category = "Productivity"

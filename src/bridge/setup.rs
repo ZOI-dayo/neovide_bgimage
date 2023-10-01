@@ -2,6 +2,7 @@ use log::{info, warn};
 use nvim_rs::Neovim;
 use rmpv::Value;
 
+use super::setup_intro_message_autocommand;
 use crate::{bridge::NeovimWriter, error_handling::ResultPanicExplanation};
 
 const REGISTER_CLIPBOARD_PROVIDER_LUA: &str = r"
@@ -125,6 +126,17 @@ pub async fn setup_neovide_specific_state(
         .await
         .ok();
 
+        // Create a command for focusing the platform window.
+        #[cfg(windows)]
+        nvim.command(&build_neovide_command(
+            neovide_channel,
+            0,
+            "NeovideFocus",
+            "focus_window",
+        ))
+        .await
+        .ok();
+
         if should_handle_clipboard {
             setup_neovide_remote_clipboard(nvim, neovide_channel).await;
         }
@@ -144,6 +156,8 @@ pub async fn setup_neovide_specific_state(
     nvim.command("autocmd VimLeave * call rpcnotify(1, 'neovide.quit', v:exiting)")
         .await
         .ok();
+
+    setup_intro_message_autocommand(nvim).await.ok();
 }
 
 #[cfg(windows)]
